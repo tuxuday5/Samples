@@ -1,7 +1,7 @@
 # Samples
 Sample scripts/programs in various languages
 
-##### epoll sys call in linux not working as expected
+## epoll sys call in linux not working as expected
 
 ```
 epoll/
