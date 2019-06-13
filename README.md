@@ -1,7 +1,7 @@
 # Samples
 Sample scripts/programs in various languages
 
-#####epoll sys call in linux not working as expected
+##### epoll sys call in linux not working as expected
 
 ```
 epoll/
@@ -18,9 +18,11 @@ writeNo.py writes a no for every second, using sleep(1).
 As the child writes a no every second, the parent should read it from the pipe and write a no every second to stdout.
 
 **Actual behaviour**
+
 The parent waits till the child writes all the nos, and then reads all data from pipe and writes to stdout. Verified by doing strace on parent. It blocks in epoll_wait.
 
 **How is epoll_test.c implemented**
+
 epoll_test uses epoll linux syscall to do i/o multiplex, though there is no multiplexing in this simple program.
 epoll creates pipe() for attaching to child stdout.
 - forks()
@@ -34,6 +36,7 @@ epoll creates pipe() for attaching to child stdout.
     - exec writeNo.py # passed as arg.
 
 **How to run**
+
 gcc  epoll_test.c
 ./a.out /usr/bin/python3.7 writeNo.py
 
