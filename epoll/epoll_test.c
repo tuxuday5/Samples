@@ -38,6 +38,28 @@ void printArgs(char **argv,char **env) {
     printf("env[%d]=%s\n",i,env[i]);
 }
 
+short int own_isspace(char c) {
+  if(c==' ' || c=='\t')
+    return 1;
+  else
+    return 0;
+}
+
+char *ltrim(char *s)
+{
+    while(own_isspace(*s)) s++;
+    return s;
+}
+
+char *rtrim(char *s)
+{
+    char* back = s + strlen(s);
+    while(own_isspace(*--back));
+    *(back+1) = '\0';
+    return s;
+}
+
+
 void PrintNos(short int max,char *name) {
   int fifo_fd,rVal;
   int bSize=2;
@@ -73,7 +95,7 @@ int main(int argc, char *argv[],char *env[]) {
     const int BUF_SIZE = 4;
 
     size_t readSize;
-    char buf[BUF_SIZE];
+    char buf[BUF_SIZE],*b;
     int status;
 
     int epoll_fd;
@@ -104,11 +126,11 @@ int main(int argc, char *argv[],char *env[]) {
         if( e_events[i].data.fd == pipe_fds_child_stdout[0]) {
           if( e_events[i].events & EPOLLIN) {
             readSize = read(pipe_fds_child_stdout[0],buf,BUF_SIZE);
-            if( readSize == BUF_SIZE ) {
+            if( readSize ) {
               write(STDOUT_FILENO,buf,BUF_SIZE);
             } else if(readSize == 0) { // eof
               errExit("readSize=0");
-            } else {
+            } else if(readSize < 0) {
               errExit("read");
             }
           } else if( e_events[i].events & EPOLLHUP) {
@@ -126,11 +148,13 @@ int main(int argc, char *argv[],char *env[]) {
   } else if( child_id == 0 ) {
     close(0);
     close(1);
+    close(2);
     //close(pipe_fds_child_stdin[1]);
     close(pipe_fds_child_stdout[0]);
 
     //dup2(pipe_fds_child_stdin[0],0);
     dup2(pipe_fds_child_stdout[1],1);
+    dup2(pipe_fds_child_stdout[1],2);
 
     execvpe(argv[1],&(argv[1]),env);
     //PrintNos(100,"P");
