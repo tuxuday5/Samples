@@ -9,8 +9,10 @@
 #include <sys/epoll.h>
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #define NAMED_FIFO "aFifo"
 
@@ -23,19 +25,6 @@ static void set_nonblocking(int fd) {
   if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
     perror("fcntl()");
   }
-}
-
-void errExit(char *msg) {
-  perror(msg);
-  exit(-1);
-}
-
-void printArgs(char **argv,char **env) {
-  for(int i=0;argv[i];i++)
-    printf("argv[%d]=%s\n",i,argv[i]);
-
-  for(int i=0;env[i];i++)
-    printf("env[%d]=%s\n",i,env[i]);
 }
 
 short int own_isspace(char c) {
@@ -59,6 +48,18 @@ char *rtrim(char *s)
     return s;
 }
 
+void errExit(char *msg) {
+  perror(msg);
+  exit(-1);
+}
+
+void printArgs(char **argv,char **env) {
+  for(int i=0;argv[i];i++)
+    printf("argv[%d]=%s\n",i,argv[i]);
+
+  for(int i=0;env[i];i++)
+    printf("env[%d]=%s\n",i,env[i]);
+}
 
 void PrintNos(short int max,char *name) {
   int fifo_fd,rVal;
@@ -85,14 +86,14 @@ int main(int argc, char *argv[],char *env[]) {
   //if( pipe(pipe_fds_child_stdin) < 0 )
   //  errExit("pipe");
 
-  if( pipe(pipe_fds_child_stdout) < 0 )
-    errExit("pipe");
+  if( socketpair(AF_UNIX,SOCK_STREAM,0,pipe_fds_child_stdout) < 0 ) 
+    errExit("socketpair");
 
   child_id = fork();
 
   if( child_id > 0 ) {
     const int MAX_POLL_FDS = 2;
-    const int BUF_SIZE = 4;
+    const int BUF_SIZE = 4096;
 
     size_t readSize;
     char buf[BUF_SIZE],*b;
@@ -125,9 +126,13 @@ int main(int argc, char *argv[],char *env[]) {
       for(int i=0;i<nfds;i++) {
         if( e_events[i].data.fd == pipe_fds_child_stdout[0]) {
           if( e_events[i].events & EPOLLIN) {
-            readSize = read(pipe_fds_child_stdout[0],buf,BUF_SIZE);
+            readSize = read(pipe_fds_child_stdout[0],buf,BUF_SIZE-1);
             if( readSize ) {
-              write(STDOUT_FILENO,buf,BUF_SIZE);
+              buf[BUF_SIZE>readSize?BUF_SIZE:readSize] = '\0';
+              b = buf;
+              b = rtrim(ltrim(b));
+              write(STDOUT_FILENO,b,strlen(b));
+              //write(STDOUT_FILENO,"\n",strlen("\n"));
             } else if(readSize == 0) { // eof
               errExit("readSize=0");
             } else if(readSize < 0) {
